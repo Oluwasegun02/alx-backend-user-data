@@ -4,6 +4,9 @@ This module contains the function filter_datum, which obfuscates sensitive field
 """
 import re
 import logging
+import os
+import mysql.connector
+
 
 
 class RedactingFormatter(logging.Formatter):
@@ -25,6 +28,8 @@ class RedactingFormatter(logging.Formatter):
         """ return the formatted record using the parent class method"""
         return super().format(record)
 
+PII_FIELDS = ("name", "email", "phone", "ssn", "password")
+
 def filter_datum(fields, redaction, message, separator):
     """
     Obfuscate sensitive fields in a log message.
@@ -42,5 +47,49 @@ def filter_datum(fields, redaction, message, separator):
     
     return re.sub(pattern, r"\1" + separator + redaction, message)
 
-# if __name__ == '__main__':
-#     main()
+def get_logger() -> logging.Logger:
+    """ Returns a logging.Logger object """
+    logger = logging.getLogger("user_data")
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+    target_handler = logging.StreamHandler()
+    target_handler.setLevel(logging.INFO)
+
+    formatter = RedactingFormatter(list(PII_FIELDS))
+
+    target_handle.setFormatter(formatter)
+
+    logger.addHandler(target_handler)
+    return logger
+
+def get_db() -> mysql.connector.connection.MYSQLConnection:
+    """get the database credentials from the environment variables"""
+    username = os.getenv("PERSONAL_DATA_DB_USERNAME", "root")
+    password = os.getenv("PERSONAL_DATA_DB_PASSWORD", "")
+    host = os.getenv("PERSONAL_DATA_DB_HOST", "localhost")
+    db_name = os.getenv("PERSONAL_DATA_DB_NAME")
+
+    """create a connection to the MySQL database using mysql.connector"""
+    conn = mysql.connector.connect(
+        user=username,
+        password=password,
+        host=host,
+        database=db_name
+    )
+
+    return conn
+
+def hash_password(password):
+    """ generate a random salt using bcrypt.gensalt and return the hashed password as a byte string"""
+    salt = bcrypt.gensalt()
+    
+    hashed = bcrypt.hashpw(password.encode(), salt)
+    """return the hashed password as a byte string"""
+    return hashed
+
+def is_valid(hashed_password, password):
+    """ use bcrypt.checkpw to compare the hashed password and the password
+    # return True if they match, False otherwise"""
+    return bcrypt.checkpw(password.encode(), hashed_password)
+
